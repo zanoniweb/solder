@@ -1,0 +1,4480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>WWII Frontline — Tactical 3D</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#7d8f72;
+    color:#fff;
+    font-family:"Segoe UI",Tahoma,sans-serif;
+    touch-action:none;
+}
+
+body{
+    position:fixed;
+    inset:0;
+}
+
+#canvas-container{
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:100dvh;
+    overflow:hidden;
+}
+
+canvas{
+    display:block;
+    width:100%;
+    height:100%;
+}
+
+.screen{
+    position:fixed;
+    inset:0;
+    z-index:50;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding:20px;
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(67,78,57,.92),
+            rgba(22,29,21,.96)
+        );
+}
+
+h1{
+    color:#e1bf4e;
+    font-size:clamp(1.5rem,5vw,2.8rem);
+    margin-bottom:12px;
+    text-transform:uppercase;
+    letter-spacing:3px;
+    text-shadow:2px 2px 8px #000;
+}
+
+p{
+    color:#d0d0d0;
+    margin-bottom:22px;
+    font-size:clamp(.85rem,2.5vw,1.05rem);
+}
+
+.btn{
+    background:linear-gradient(180deg,#627752,#3d5033);
+    color:#fff;
+    border:1px solid #a4bd91;
+    padding:13px 22px;
+    margin:6px;
+    font-size:14px;
+    cursor:pointer;
+    border-radius:6px;
+    font-weight:bold;
+    width:min(280px,90vw);
+    text-transform:uppercase;
+    letter-spacing:1px;
+    box-shadow:0 4px 12px rgba(0,0,0,.45);
+}
+
+.btn:hover{
+    background:#718d58;
+    border-color:#fff;
+}
+
+.btn:active{
+    transform:scale(.97);
+}
+
+#hud{
+    position:fixed;
+    top:max(7px,env(safe-area-inset-top));
+    left:7px;
+    right:7px;
+    z-index:10;
+    pointer-events:none;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:3px;
+
+    padding:8px 10px;
+
+    background:rgba(12,16,11,.64);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:9px;
+
+    backdrop-filter:blur(5px);
+    -webkit-backdrop-filter:blur(5px);
+
+    text-shadow:2px 2px 4px #000;
+}
+
+.hud-card{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-width:55px;
+}
+
+.hud-title{
+    color:#b8b8b8;
+    font-size:9px;
+    text-transform:uppercase;
+}
+
+.hud-value{
+    color:#e0bd45;
+    font-size:14px;
+    font-weight:bold;
+}
+
+#ui-health{color:#55d36a}
+#ui-armor{color:#6fb8ff}
+#ui-stamina{color:#7fca65}
+#ui-ammo{color:#e0bd45}
+#ui-medkits{color:#ff7272}
+#ui-grenades{color:#b8b8b8}
+#ui-rocket-ammo{color:#e99a56}
+
+#crosshair{
+    position:fixed;
+    top:50%;
+    left:50%;
+    width:20px;
+    height:20px;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    z-index:8;
+}
+
+#crosshair::before,
+#crosshair::after{
+    content:"";
+    position:absolute;
+    background:rgba(255,255,255,.9);
+    box-shadow:0 0 3px #000;
+}
+
+#crosshair::before{
+    top:9px;
+    left:0;
+    width:20px;
+    height:2px;
+}
+
+#crosshair::after{
+    top:0;
+    left:9px;
+    width:2px;
+    height:20px;
+}
+
+#reload-indicator,
+#interaction-indicator,
+#message-indicator,
+#cover-indicator{
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:12;
+    pointer-events:none;
+    text-align:center;
+    text-shadow:2px 2px 5px #000;
+}
+
+#reload-indicator{
+    bottom:19%;
+    color:#e5c85e;
+    font-weight:bold;
+    font-size:18px;
+    display:none;
+}
+
+#interaction-indicator{
+    bottom:29%;
+    padding:9px 14px;
+    border-radius:5px;
+    background:rgba(0,0,0,.72);
+    border:1px solid rgba(255,255,255,.3);
+    font-size:14px;
+    display:none;
+}
+
+#message-indicator{
+    top:68%;
+    color:#e0bd45;
+    font-weight:bold;
+    font-size:17px;
+    opacity:0;
+    transition:opacity .2s;
+}
+
+#cover-indicator{
+    top:14%;
+    padding:6px 12px;
+    border-radius:5px;
+    background:rgba(25,70,30,.65);
+    border:1px solid rgba(100,220,110,.45);
+    color:#b5e6b5;
+    font-size:12px;
+    font-weight:bold;
+    opacity:0;
+}
+
+#touch-joystick{
+    position:fixed;
+    bottom:max(18px,env(safe-area-inset-bottom));
+    left:18px;
+
+    width:120px;
+    height:120px;
+
+    background:rgba(255,255,255,.07);
+    border:2px solid rgba(255,255,255,.25);
+    border-radius:50%;
+
+    z-index:20;
+    touch-action:none;
+    display:none;
+}
+
+#stick{
+    position:absolute;
+    width:50px;
+    height:50px;
+    left:33px;
+    top:33px;
+
+    background:rgba(218,183,58,.62);
+    border:1px solid rgba(255,255,255,.4);
+    border-radius:50%;
+    pointer-events:none;
+}
+
+#weapon-buttons{
+    position:fixed;
+    right:14px;
+    bottom:max(14px,env(safe-area-inset-bottom));
+    z-index:20;
+
+    display:none;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:6px;
+}
+
+.weapon-row,
+.action-row{
+    display:flex;
+    gap:5px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+}
+
+.weapon-select-btn{
+    width:auto;
+    min-width:65px;
+    padding:7px 5px;
+    margin:0;
+    font-size:9px;
+}
+
+.action-btn{
+    width:62px;
+    height:62px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    color:#fff;
+    font-weight:bold;
+    font-size:9px;
+
+    border:2px solid #fff;
+    box-shadow:0 4px 10px rgba(0,0,0,.6);
+    cursor:pointer;
+    touch-action:manipulation;
+}
+
+.action-btn.red{
+    background:radial-gradient(circle,#a83232,#601919);
+}
+
+.action-btn.green{
+    background:radial-gradient(circle,#608b43,#29421f);
+}
+
+.action-btn.gold{
+    background:radial-gradient(circle,#ae8a29,#62500e);
+}
+
+.action-btn.orange{
+    background:radial-gradient(circle,#bd7237,#663414);
+}
+
+.action-btn.blue{
+    background:radial-gradient(circle,#3e79a9,#1e405d);
+}
+
+/* ============================
+   CAIXAS DE SUPRIMENTOS
+   ============================ */
+
+.pickup-label{
+    position:absolute;
+    transform:translate(-50%,-100%);
+    padding:3px 6px;
+    border-radius:3px;
+    background:rgba(0,0,0,.75);
+    color:#fff;
+    font-size:10px;
+    font-weight:bold;
+    white-space:nowrap;
+    pointer-events:none;
+}
+
+.pickup-box{
+    position:absolute;
+    z-index:1;
+}
+
+/* ============================
+   RESPONSIVIDADE
+   ============================ */
+
+@media(max-width:900px){
+
+    #hud{
+        gap:1px;
+        padding:7px 4px;
+    }
+
+    .hud-card{
+        min-width:43px;
+    }
+
+    .hud-title{
+        font-size:7px;
+    }
+
+    .hud-value{
+        font-size:10px;
+    }
+}
+
+@media(max-width:600px){
+
+    #hud{
+        top:3px;
+        left:2px;
+        right:2px;
+        padding:5px 2px;
+        border-radius:6px;
+    }
+
+    .hud-card{
+        min-width:32px;
+    }
+
+    .hud-title{
+        font-size:5.5px;
+    }
+
+    .hud-value{
+        font-size:8px;
+    }
+
+    #crosshair{
+        width:16px;
+        height:16px;
+    }
+
+    #crosshair::before{
+        top:7px;
+        width:16px;
+    }
+
+    #crosshair::after{
+        left:7px;
+        height:16px;
+    }
+
+    #touch-joystick{
+        width:105px;
+        height:105px;
+        left:12px;
+        bottom:12px;
+    }
+
+    #stick{
+        width:44px;
+        height:44px;
+        left:28px;
+        top:28px;
+    }
+
+    #weapon-buttons{
+        right:8px;
+        bottom:8px;
+        gap:4px;
+        max-width:54vw;
+    }
+
+    .weapon-select-btn{
+        min-width:47px;
+        font-size:6.5px;
+        padding:6px 2px;
+    }
+
+    .action-btn{
+        width:52px;
+        height:52px;
+        font-size:7px;
+    }
+
+    #interaction-indicator{
+        bottom:31%;
+        max-width:88%;
+        font-size:10px;
+    }
+
+    #reload-indicator{
+        bottom:23%;
+        font-size:15px;
+    }
+}
+
+@media(max-width:380px){
+
+    #touch-joystick{
+        width:88px;
+        height:88px;
+    }
+
+    #stick{
+        width:38px;
+        height:38px;
+        left:23px;
+        top:23px;
+    }
+
+    .action-btn{
+        width:46px;
+        height:46px;
+        font-size:6px;
+    }
+
+    .weapon-select-btn{
+        min-width:42px;
+        font-size:6px;
+    }
+}
+
+@media(pointer:fine){
+
+    #touch-joystick,
+    #weapon-buttons{
+        display:none!important;
+    }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+
+<div id="canvas-container"></div>
+<div id="crosshair"></div>
+
+<div id="hud" style="display:none">
+
+    <div class="hud-card">
+        <span class="hud-title">Fase</span>
+        <span class="hud-value" id="ui-level">1/12</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Vida</span>
+        <span class="hud-value" id="ui-health">100%</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Colete</span>
+        <span class="hud-value" id="ui-armor">0/30</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Reserva</span>
+        <span class="hud-value" id="ui-vests">0</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Stamina</span>
+        <span class="hud-value" id="ui-stamina">100%</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Arma</span>
+        <span class="hud-value" id="ui-weapon">M1 Garand</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Munição</span>
+        <span class="hud-value" id="ui-ammo">8/40</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Kits</span>
+        <span class="hud-value" id="ui-medkits">0</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Granadas</span>
+        <span class="hud-value" id="ui-grenades">0</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Foguetes</span>
+        <span class="hud-value" id="ui-rocket-ammo">0</span>
+    </div>
+
+    <div class="hud-card">
+        <span class="hud-title">Inimigos</span>
+        <span class="hud-value" id="ui-enemies">0</span>
+    </div>
+
+</div>
+
+<div id="reload-indicator">RECARREGANDO...</div>
+<div id="interaction-indicator"></div>
+<div id="message-indicator"></div>
+<div id="cover-indicator">COLETE ATIVO</div>
+
+<div id="menu-screen" class="screen">
+
+    <h1>WWII: Operação de Linha de Frente</h1>
+
+    <p>Selecione sua facção</p>
+
+    <button class="btn" onclick="selectNation('US')">
+        EUA — Aliados
+    </button>
+
+    <button class="btn" onclick="selectNation('JP')">
+        Japão — Império
+    </button>
+
+    <button class="btn" onclick="selectNation('GER')">
+        Alemanha — Eixo
+    </button>
+
+    <div class="legend">
+        <b>PC:</b>
+        WASD movimentar · Mouse mirar · Clique disparar ·
+        R recarregar · K usar kit · G granada · B bazuca
+        <br>
+        <b>1:</b> Pistola ·
+        <b>2:</b> Fuzil ·
+        <b>3:</b> Metralhadora ·
+        <b>4:</b> Baioneta ·
+        <b>5:</b> Bazuca
+    </div>
+
+</div>
+
+<div id="end-screen" class="screen">
+
+    <h1 id="end-title">Fim de Jogo</h1>
+
+    <p id="end-description"></p>
+
+    <button class="btn" onclick="restartGame()">
+        Jogar Novamente
+    </button>
+
+</div>
+
+<div id="touch-joystick">
+    <div id="stick"></div>
+</div>
+
+<div id="weapon-buttons">
+
+    <div class="weapon-row">
+
+        <button class="btn weapon-select-btn" onclick="setWeapon(1)">
+            1<br>M1911
+        </button>
+
+        <button class="btn weapon-select-btn" onclick="setWeapon(2)">
+            2<br>GARAND
+        </button>
+
+        <button class="btn weapon-select-btn" onclick="setWeapon(3)">
+            3<br>METRALHADORA
+        </button>
+
+        <button class="btn weapon-select-btn" onclick="setWeapon(4)">
+            4<br>BAIONETA
+        </button>
+
+        <button class="btn weapon-select-btn" onclick="setWeapon(5)">
+            5<br>BAZUCA
+        </button>
+
+    </div>
+
+    <div class="action-row">
+
+        <button class="action-btn red" id="btn-fire">
+            FOGO
+        </button>
+
+        <button class="action-btn green" id="btn-medkit">
+            KIT<br>(K)
+        </button>
+
+        <button class="action-btn gold" id="btn-grenade">
+            GRANADA<br>(G)
+        </button>
+
+        <button class="action-btn orange" id="btn-rocket">
+            BAZUCA<br>(B)
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+
+let scene;
+let camera;
+let renderer;
+let playerFPWeaponGroup;
+
+let level=1;
+
+let enemies=[];
+let pickups=[];
+let sceneryObjects=[];
+let shells=[];
+let particles=[];
+let projectiles=[];
+
+let isGameRunning=false;
+
+let joystickMove={x:0,y:0};
+let recoil=0;
+let weaponBob=0;
+let lastTime=performance.now();
+
+const keys={};
+
+/*
+    armor = quantidade de impactos que o colete ainda suporta.
+    armorStock = quantidade de coletes completos guardados.
+*/
+
+const player={
+
+    nation:'',
+
+    enemyNation:'GER',
+
+    currentWeapon:2,
+
+    health:100,
+
+    armor:0,
+    maxArmor:30,
+    armorStock:0,
+
+    stamina:100,
+
+    medkits:0,
+    grenades:0,
+
+    ammo:{
+        pistol:21,
+        rifle:40,
+        machinegun:90,
+        rockets:0
+    },
+
+    magazine:{
+        pistol:7,
+        rifle:8,
+        machinegun:30,
+        rockets:1
+    },
+
+    isReloading:false,
+    lastShot:0
+};
+
+
+/* ============================================================
+   DADOS DAS ARMAS
+   ============================================================ */
+
+const weaponsData={
+
+    1:{
+        name:'Pistola M1911',
+        damage:34,
+        headDamage:70,
+        range:55,
+        magazine:7,
+        reloadTime:1100,
+        fireRate:330,
+        spread:.018,
+        recoil:.035,
+        ammoType:'pistol'
+    },
+
+    2:{
+        name:'Fuzil M1 Garand',
+        damage:95,
+        headDamage:180,
+        range:180,
+        magazine:8,
+        reloadTime:1500,
+        fireRate:430,
+        spread:.006,
+        recoil:.075,
+        ammoType:'rifle'
+    },
+
+    3:{
+        name:'Metralhadora',
+        damage:25,
+        headDamage:55,
+        range:110,
+        magazine:30,
+        reloadTime:1900,
+        fireRate:105,
+        spread:.025,
+        recoil:.035,
+        ammoType:'machinegun'
+    },
+
+    4:{
+        name:'Baioneta',
+        damage:80,
+        headDamage:100,
+        range:2.5,
+        magazine:Infinity,
+        reloadTime:0,
+        fireRate:700,
+        spread:0,
+        recoil:.015,
+        ammoType:null,
+        melee:true
+    },
+
+    5:{
+        name:'Bazuca',
+        damage:260,
+        headDamage:260,
+        range:150,
+        magazine:1,
+        reloadTime:2200,
+        fireRate:2200,
+        spread:.008,
+        recoil:.15,
+        ammoType:'rockets',
+        explosive:true
+    }
+};
+
+
+/* ============================================================
+   NACIONALIDADES
+   ============================================================ */
+
+const nationData={
+
+    US:{
+        name:'EUA',
+        uniform:0x536b47,
+        helmet:0x394b30,
+        skin:0xb98262,
+        accent:0x203a67
+    },
+
+    GER:{
+        name:'Alemanha',
+        uniform:0x4a4b3d,
+        helmet:0x303128,
+        skin:0xb98262,
+        accent:0x292b27
+    },
+
+    JP:{
+        name:'Japão',
+        uniform:0x8b7c45,
+        helmet:0x6d6032,
+        skin:0xb98262,
+        accent:0x8e2e2e
+    }
+};
+
+function getEnemyNation(){
+
+    if(player.nation==='US')
+        return 'GER';
+
+    if(player.nation==='GER')
+        return 'US';
+
+    if(player.nation==='JP')
+        return 'US';
+
+    return 'GER';
+}
+
+
+/* ============================================================
+   ÁUDIO
+   ============================================================ */
+
+const audioCtx=new(
+    window.AudioContext||
+    window.webkitAudioContext
+)();
+
+function playSound(type){
+
+    if(audioCtx.state==='suspended')
+        audioCtx.resume();
+
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now=audioCtx.currentTime;
+
+    const data={
+
+        shoot:[180,45,.16,.5],
+        hit:[120,40,.12,.25],
+        reload:[180,260,.18,.12],
+        pickup:[500,850,.12,.15],
+        grenade:[100,35,.35,.35],
+        rocket:[80,25,.4,.5],
+        heal:[450,850,.3,.2]
+    };
+
+    const d=data[type]||data.hit;
+
+    osc.type=
+        type==='reload'
+        ?'square'
+        :type==='pickup'
+        ?'sine'
+        :'sawtooth';
+
+    osc.frequency.setValueAtTime(d[0],now);
+
+    osc.frequency.exponentialRampToValueAtTime(
+        d[1],
+        now+d[2]
+    );
+
+    gain.gain.setValueAtTime(d[3],now);
+
+    gain.gain.exponentialRampToValueAtTime(
+        .001,
+        now+d[2]
+    );
+
+    osc.start(now);
+    osc.stop(now+d[2]);
+}
+
+
+/* ============================================================
+   MENSAGENS
+   ============================================================ */
+
+function showMessage(text,color='#e0bd45'){
+
+    const el=document.getElementById(
+        'message-indicator'
+    );
+
+    el.innerText=text;
+    el.style.color=color;
+    el.style.opacity='1';
+
+    clearTimeout(showMessage.timer);
+
+    showMessage.timer=setTimeout(()=>{
+        el.style.opacity='0';
+    },1500);
+}
+
+
+/* ============================================================
+   MODELO DA ARMA
+   ============================================================ */
+
+function createWeaponMesh(id){
+
+    const group=new THREE.Group();
+
+    const metal=new THREE.MeshStandardMaterial({
+        color:0x242424,
+        roughness:.48,
+        metalness:.75
+    });
+
+    const wood=new THREE.MeshStandardMaterial({
+        color:0x58371f,
+        roughness:.9
+    });
+
+    if(id===1){
+
+        const slide=new THREE.Mesh(
+            new THREE.BoxGeometry(.08,.1,.42),
+            metal
+        );
+
+        const grip=new THREE.Mesh(
+            new THREE.BoxGeometry(.08,.25,.12),
+            wood
+        );
+
+        grip.position.set(0,-.13,.08);
+        grip.rotation.x=-.25;
+
+        group.add(slide,grip);
+
+    }else if(id===3){
+
+        const body=new THREE.Mesh(
+            new THREE.BoxGeometry(.16,.18,.6),
+            metal
+        );
+
+        const stock=new THREE.Mesh(
+            new THREE.BoxGeometry(.12,.15,.65),
+            wood
+        );
+
+        stock.position.z=.42;
+
+        const barrel=new THREE.Mesh(
+            new THREE.CylinderGeometry(.025,.025,1.0,8),
+            metal
+        );
+
+        barrel.rotation.x=Math.PI/2;
+        barrel.position.z=-.72;
+
+        group.add(body,stock,barrel);
+
+    }else if(id===5){
+
+        const tube=new THREE.Mesh(
+            new THREE.CylinderGeometry(.08,.08,1.2,12),
+            metal
+        );
+
+        tube.rotation.x=Math.PI/2;
+
+        const grip=new THREE.Mesh(
+            new THREE.BoxGeometry(.14,.22,.18),
+            wood
+        );
+
+        grip.position.set(0,-.15,.15);
+
+        group.add(tube,grip);
+
+    }else{
+
+        const stock=new THREE.Mesh(
+            new THREE.BoxGeometry(.10,.14,.9),
+            wood
+        );
+
+        const receiver=new THREE.Mesh(
+            new THREE.BoxGeometry(.12,.12,.35),
+            metal
+        );
+
+        receiver.position.z=-.35;
+
+        const barrel=new THREE.Mesh(
+            new THREE.CylinderGeometry(.025,.025,1.25,8),
+            metal
+        );
+
+        barrel.rotation.x=Math.PI/2;
+        barrel.position.z=-.65;
+
+        group.add(stock,receiver,barrel);
+
+        if(id===4){
+
+            const blade=new THREE.Mesh(
+                new THREE.BoxGeometry(.018,.055,.38),
+                metal
+            );
+
+            blade.position.z=-1.18;
+
+            group.add(blade);
+        }
+    }
+
+    return group;
+}
+
+
+/* ============================================================
+   SOLDADO
+   ============================================================ */
+
+function createSoldierMesh(nation='GER',isEnemy=true){
+
+    const soldier=new THREE.Group();
+
+    const data=nationData[nation]||nationData.GER;
+
+    const uniform=new THREE.MeshStandardMaterial({
+        color:data.uniform,
+        roughness:.9
+    });
+
+    const skin=new THREE.MeshStandardMaterial({
+        color:data.skin,
+        roughness:.8
+    });
+
+    const helmetMat=new THREE.MeshStandardMaterial({
+        color:data.helmet,
+        roughness:.85
+    });
+
+    const accentMat=new THREE.MeshStandardMaterial({
+        color:data.accent,
+        roughness:.8
+    });
+
+    const torso=new THREE.Mesh(
+        new THREE.BoxGeometry(.48,.68,.30),
+        uniform
+    );
+
+    torso.position.y=.95;
+
+    const head=new THREE.Mesh(
+        new THREE.SphereGeometry(.16,12,10),
+        skin
+    );
+
+    head.position.y=1.42;
+    head.userData.hitZone='head';
+
+    const helmet=new THREE.Mesh(
+        new THREE.SphereGeometry(
+            .19,
+            12,
+            8,
+            0,
+            Math.PI*2,
+            0,
+            Math.PI/2
+        ),
+        helmetMat
+    );
+
+    helmet.position.y=1.46;
+
+    const armR=new THREE.Mesh(
+        new THREE.BoxGeometry(.12,.48,.12),
+        uniform
+    );
+
+    armR.position.set(.30,1,-.12);
+    armR.rotation.x=-Math.PI/3;
+
+    const armL=armR.clone();
+    armL.position.x=-.30;
+
+    const legR=new THREE.Mesh(
+        new THREE.BoxGeometry(.16,.60,.16),
+        uniform
+    );
+
+    legR.position.set(.14,.30,0);
+
+    const legL=legR.clone();
+    legL.position.x=-.14;
+
+    const weapon=createWeaponMesh(2);
+
+    weapon.position.set(
+        .15,
+        .90,
+        -.35
+    );
+
+    weapon.scale.set(
+        .75,
+        .75,
+        .75
+    );
+
+    /*
+       Faixa de identificação nacional.
+       EUA = azul
+       Alemanha = cinza escuro
+       Japão = vermelho
+    */
+
+    const armband=new THREE.Mesh(
+        new THREE.BoxGeometry(.035,.16,.16),
+        accentMat
+    );
+
+    armband.position.set(
+        .32,
+        1.08,
+        -.12
+    );
+
+    soldier.add(
+        torso,
+        head,
+        helmet,
+        armR,
+        armL,
+        legR,
+        legL,
+        weapon,
+        armband
+    );
+
+    soldier.userData.nation=nation;
+    soldier.userData.nationName=data.name;
+
+    soldier.traverse(o=>{
+
+        if(o.isMesh){
+
+            o.castShadow=true;
+
+            o.userData.soldier=soldier;
+        }
+    });
+
+    return soldier;
+}
+
+
+/* ============================================================
+   ENGINE
+   ============================================================ */
+
+function initEngine(){
+
+    const container=document.getElementById(
+        'canvas-container'
+    );
+
+    container.innerHTML='';
+
+    scene=new THREE.Scene();
+
+    camera=new THREE.PerspectiveCamera(
+        70,
+        window.innerWidth/
+        window.innerHeight,
+        .1,
+        800
+    );
+
+    camera.position.set(
+        0,
+        1.7,
+        0
+    );
+
+    camera.rotation.order='YXZ';
+
+    renderer=new THREE.WebGLRenderer({
+        antialias:true,
+        powerPreference:'high-performance'
+    });
+
+    renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+    );
+
+    renderer.setPixelRatio(
+        Math.min(
+            window.devicePixelRatio,
+            1.5
+        )
+    );
+
+    renderer.shadowMap.enabled=true;
+    renderer.shadowMap.type=
+        THREE.PCFSoftShadowMap;
+
+    renderer.outputEncoding=
+        THREE.sRGBEncoding;
+
+    renderer.toneMapping=
+        THREE.ACESFilmicToneMapping;
+
+    renderer.toneMappingExposure=1.15;
+
+    container.appendChild(
+        renderer.domElement
+    );
+
+    const hemi=new THREE.HemisphereLight(
+        0xc8d7bb,
+        0x554331,
+        1.15
+    );
+
+    scene.add(hemi);
+
+    const sun=new THREE.DirectionalLight(
+        0xffe8c4,
+        1.65
+    );
+
+    sun.position.set(
+        50,
+        80,
+        30
+    );
+
+    sun.castShadow=true;
+
+    sun.shadow.mapSize.width=1024;
+    sun.shadow.mapSize.height=1024;
+
+    scene.add(sun);
+
+    playerFPWeaponGroup=
+        new THREE.Group();
+
+    camera.add(
+        playerFPWeaponGroup
+    );
+
+    scene.add(camera);
+
+    updateFirstPersonWeapon();
+
+    window.addEventListener(
+        'resize',
+        onWindowResize
+    );
+
+    setupControls();
+}
+
+
+/* ============================================================
+   BIOMAS
+   ============================================================ */
+
+const biomes=[
+
+    {
+        name:'Floresta Temperada',
+        sky:0x8ea58a,
+        ground:0x526143,
+        fog:0x8ea58a,
+        fogDensity:.006,
+        tree:0x345333,
+        grass:0x617345,
+        rock:0x67685c
+    },
+
+    {
+        name:'Campo Europeu',
+        sky:0xa7b39a,
+        ground:0x806d49,
+        fog:0xa7b39a,
+        fogDensity:.005,
+        tree:0x49633c,
+        grass:0x78804c,
+        rock:0x777264
+    },
+
+    {
+        name:'Terreno Seco',
+        sky:0xc7b98d,
+        ground:0x927650,
+        fog:0xc7b98d,
+        fogDensity:.004,
+        tree:0x6d673c,
+        grass:0x8e8046,
+        rock:0x806c58
+    },
+
+    {
+        name:'Pântano',
+        sky:0x778579,
+        ground:0x48503d,
+        fog:0x778579,
+        fogDensity:.008,
+        tree:0x30442e,
+        grass:0x536943,
+        rock:0x565c50
+    },
+
+    {
+        name:'Floresta de Montanha',
+        sky:0x8294a0,
+        ground:0x59604e,
+        fog:0x8294a0,
+        fogDensity:.006,
+        tree:0x304b39,
+        grass:0x687454,
+        rock:0x77766d
+    },
+
+    {
+        name:'Neve',
+        sky:0xcbd5dc,
+        ground:0xc3c9c5,
+        fog:0xcbd5dc,
+        fogDensity:.006,
+        tree:0x314a37,
+        grass:0xa8b3a3,
+        rock:0x888c88
+    }
+];
+
+function getBiome(){
+
+    return biomes[
+        (level-1)%
+        biomes.length
+    ];
+}
+
+
+/* ============================================================
+   VEGETAÇÃO
+   ============================================================ */
+
+function createTree(color){
+
+    const group=new THREE.Group();
+
+    const trunk=new THREE.Mesh(
+        new THREE.CylinderGeometry(
+            .12,
+            .18,
+            2.2,
+            8
+        ),
+        new THREE.MeshStandardMaterial({
+            color:0x5b3e27,
+            roughness:1
+        })
+    );
+
+    trunk.position.y=1.1;
+
+    const crown=new THREE.Mesh(
+        new THREE.ConeGeometry(
+            .85,
+            2.2,
+            8
+        ),
+        new THREE.MeshStandardMaterial({
+            color,
+            roughness:1
+        })
+    );
+
+    crown.position.y=2.55;
+
+    group.add(
+        trunk,
+        crown
+    );
+
+    group.traverse(o=>{
+
+        if(o.isMesh)
+            o.castShadow=true;
+    });
+
+    return group;
+}
+
+function createBush(color){
+
+    const group=new THREE.Group();
+
+    for(let i=0;i<4;i++){
+
+        const bush=new THREE.Mesh(
+            new THREE.SphereGeometry(
+                .25+
+                Math.random()*.25,
+                7,
+                6
+            ),
+            new THREE.MeshStandardMaterial({
+                color,
+                roughness:1
+            })
+        );
+
+        bush.position.set(
+            (Math.random()-.5)*.5,
+            .2+
+            Math.random()*.15,
+            (Math.random()-.5)*.5
+        );
+
+        group.add(bush);
+    }
+
+    return group;
+}
+
+function createRock(color){
+
+    const rock=new THREE.Mesh(
+        new THREE.DodecahedronGeometry(
+            .3+
+            Math.random()*.6,
+            0
+        ),
+        new THREE.MeshStandardMaterial({
+            color,
+            roughness:1
+        })
+    );
+
+    rock.scale.y=.6;
+
+    rock.castShadow=true;
+
+    return rock;
+}
+
+
+/* ============================================================
+   CAMPO DE BATALHA
+   ============================================================ */
+
+function createBattlefield(){
+
+    sceneryObjects.forEach(o=>
+        scene.remove(o)
+    );
+
+    enemies.forEach(e=>
+        scene.remove(e.mesh)
+    );
+
+    pickups.forEach(p=>
+        scene.remove(p.mesh)
+    );
+
+    shells.forEach(s=>
+        scene.remove(s.mesh)
+    );
+
+    particles.forEach(p=>
+        scene.remove(p.mesh)
+    );
+
+    projectiles.forEach(p=>
+        scene.remove(p.mesh)
+    );
+
+    sceneryObjects=[];
+    enemies=[];
+    pickups=[];
+    shells=[];
+    particles=[];
+    projectiles=[];
+
+    camera.position.set(
+        0,
+        1.7,
+        0
+    );
+
+    const biome=getBiome();
+
+    scene.background=
+        new THREE.Color(
+            biome.sky
+        );
+
+    scene.fog=
+        new THREE.FogExp2(
+            biome.fog,
+            biome.fogDensity
+        );
+
+    const floor=new THREE.Mesh(
+        new THREE.PlaneGeometry(
+            250,
+            250
+        ),
+        new THREE.MeshStandardMaterial({
+            color:biome.ground,
+            roughness:1
+        })
+    );
+
+    floor.rotation.x=-Math.PI/2;
+
+    floor.receiveShadow=true;
+
+    scene.add(floor);
+
+    sceneryObjects.push(floor);
+
+
+    /* árvores */
+
+    for(let i=0;i<55;i++){
+
+        const obj=
+            createTree(
+                biome.tree
+            );
+
+        obj.scale.setScalar(
+            .65+
+            Math.random()*.8
+        );
+
+        obj.position.set(
+            (Math.random()-.5)*180,
+            0,
+            (Math.random()-.5)*180
+        );
+
+        scene.add(obj);
+
+        sceneryObjects.push(obj);
+    }
+
+
+    /* arbustos */
+
+    for(let i=0;i<70;i++){
+
+        const bush=
+            createBush(
+                biome.grass
+            );
+
+        bush.position.set(
+            (Math.random()-.5)*180,
+            0,
+            (Math.random()-.5)*180
+        );
+
+        scene.add(bush);
+
+        sceneryObjects.push(bush);
+    }
+
+
+    /* pedras */
+
+    for(let i=0;i<35;i++){
+
+        const rock=
+            createRock(
+                biome.rock
+            );
+
+        rock.position.set(
+            (Math.random()-.5)*170,
+            .2,
+            (Math.random()-.5)*170
+        );
+
+        scene.add(rock);
+
+        sceneryObjects.push(rock);
+    }
+
+
+    /* crateras */
+
+    for(let i=0;i<20;i++){
+
+        const crater=new THREE.Mesh(
+            new THREE.CircleGeometry(
+                .6+
+                Math.random()*1.5,
+                16
+            ),
+            new THREE.MeshStandardMaterial({
+                color:0x30271d,
+                roughness:1
+            })
+        );
+
+        crater.rotation.x=-Math.PI/2;
+
+        crater.position.set(
+            (Math.random()-.5)*170,
+            .01,
+            (Math.random()-.5)*170
+        );
+
+        scene.add(crater);
+
+        sceneryObjects.push(crater);
+    }
+
+
+    /*
+       SUPRIMENTOS
+       4 caixas pistola
+       6 caixas fuzil
+       5 caixas metralhadora
+       5 granadas
+       4 bazucas
+       6 coletes
+       10 kits médicos
+    */
+
+    createAmmoPickups();
+    createArmorPickups();
+    createMedkits();
+    createGrenades();
+    createRocketBoxes();
+
+    spawnEnemies();
+
+    updateHUD();
+
+    showMessage(
+        `FASE ${level}: ${biome.name}`,
+        '#e0bd45'
+    );
+}
+
+
+/* ============================================================
+   MODELO VISUAL DAS CAIXAS
+   ============================================================ */
+
+function createPickupMesh(
+    type,
+    color,
+    label
+){
+
+    const group=
+        new THREE.Group();
+
+    const box=new THREE.Mesh(
+        new THREE.BoxGeometry(
+            1,
+            .55,
+            .75
+        ),
+        new THREE.MeshStandardMaterial({
+            color,
+            roughness:.75
+        })
+    );
+
+    box.position.y=.3;
+
+    box.castShadow=true;
+
+    group.add(box);
+
+
+    /* faixa de identificação */
+
+    const stripeColor={
+        pistol:0x2879c7,
+        rifle:0x9caa45,
+        machinegun:0x596b32,
+        grenade:0x9da052,
+        rocket:0xe27935,
+        armor:0x368fe1,
+        medkit:0xe52f38
+    }[type]||0xffffff;
+
+    const stripe=new THREE.Mesh(
+        new THREE.BoxGeometry(
+            1.02,
+            .12,
+            .77
+        ),
+        new THREE.MeshStandardMaterial({
+            color:stripeColor,
+            emissive:stripeColor,
+            emissiveIntensity:.08
+        })
+    );
+
+    stripe.position.y=.58;
+
+    group.add(stripe);
+
+
+    /*
+       Cruz para kit médico
+    */
+
+    if(type==='medkit'){
+
+        const white=
+            new THREE.MeshBasicMaterial({
+                color:0xffffff
+            });
+
+        const vertical=new THREE.Mesh(
+            new THREE.BoxGeometry(
+                .16,
+                .02,
+                .42
+            ),
+            white
+        );
+
+        vertical.position.set(
+            0,
+            .61,
+            0
+        );
+
+        const horizontal=new THREE.Mesh(
+            new THREE.BoxGeometry(
+                .42,
+                .02,
+                .16
+            ),
+            white
+        );
+
+        horizontal.position.set(
+            0,
+            .615,
+            0
+        );
+
+        group.add(
+            vertical,
+            horizontal
+        );
+    }
+
+
+    /*
+       símbolo de colete
+    */
+
+    if(type==='armor'){
+
+        const armorPlate=
+            new THREE.Mesh(
+                new THREE.BoxGeometry(
+                    .45,
+                    .06,
+                    .35
+                ),
+                new THREE.MeshStandardMaterial({
+                    color:0x9fc9ec,
+                    metalness:.5,
+                    roughness:.35
+                })
+            );
+
+        armorPlate.position.set(
+            0,
+            .63,
+            0
+        );
+
+        group.add(armorPlate);
+    }
+
+
+    /*
+       Granadas
+    */
+
+    if(type==='grenade'){
+
+        for(let i=0;i<3;i++){
+
+            const grenade=
+                new THREE.Mesh(
+                    new THREE.SphereGeometry(
+                        .10,
+                        8,
+                        8
+                    ),
+                    new THREE.MeshStandardMaterial({
+                        color:0x34452a,
+                        roughness:.8
+                    })
+                );
+
+            grenade.position.set(
+                -.22+i*.22,
+                .67,
+                0
+            );
+
+            group.add(grenade);
+        }
+    }
+
+
+    /*
+       Foguete
+    */
+
+    if(type==='rocket'){
+
+        const rocket=
+            new THREE.Mesh(
+                new THREE.CylinderGeometry(
+                    .08,
+                    .08,
+                    .48,
+                    8
+                ),
+                new THREE.MeshStandardMaterial({
+                    color:0x7b7b69,
+                    metalness:.4,
+                    roughness:.5
+                })
+            );
+
+        rocket.rotation.z=Math.PI/2;
+
+        rocket.position.y=.68;
+
+        group.add(rocket);
+    }
+
+
+    /*
+       etiqueta 3D
+    */
+
+    const canvas=
+        document.createElement('canvas');
+
+    canvas.width=256;
+    canvas.height=64;
+
+    const ctx=
+        canvas.getContext('2d');
+
+    ctx.fillStyle=
+        'rgba(0,0,0,.75)';
+
+    ctx.fillRect(
+        0,
+        0,
+        256,
+        64
+    );
+
+    ctx.fillStyle='#ffffff';
+
+    ctx.font=
+        'bold 25px Arial';
+
+    ctx.textAlign='center';
+
+    ctx.fillText(
+        label,
+        128,
+        42
+    );
+
+    const texture=
+        new THREE.CanvasTexture(
+            canvas
+        );
+
+    const labelMesh=
+        new THREE.Sprite(
+            new THREE.SpriteMaterial({
+                map:texture,
+                transparent:true
+            })
+        );
+
+    labelMesh.scale.set(
+        1.5,
+        .38,
+        1
+    );
+
+    labelMesh.position.y=1.15;
+
+    group.add(labelMesh);
+
+    return group;
+}
+
+
+/* ============================================================
+   ADICIONAR PICKUP
+   ============================================================ */
+
+function addPickup(
+    type,
+    pos
+){
+
+    const config={
+
+        pistol:{
+            color:0x315c82,
+            label:'PISTOLA'
+        },
+
+        rifle:{
+            color:0x4d5c35,
+            label:'FUZIL'
+        },
+
+        machinegun:{
+            color:0x3c4630,
+            label:'METRALHADORA'
+        },
+
+        grenade:{
+            color:0x59623b,
+            label:'GRANADAS'
+        },
+
+        rocket:{
+            color:0x75452c,
+            label:'BAZUCAS'
+        },
+
+        armor:{
+            color:0x315c82,
+            label:'COLETE'
+        },
+
+        medkit:{
+            color:0x9b302d,
+            label:'KIT MÉDICO'
+        }
+    };
+
+    const c=
+        config[type];
+
+    const mesh=
+        createPickupMesh(
+            type,
+            c.color,
+            c.label
+        );
+
+    mesh.position.copy(pos);
+
+    scene.add(mesh);
+
+    pickups.push({
+
+        type,
+
+        mesh,
+
+        active:true
+    });
+}
+
+
+/* ============================================================
+   CAIXAS DE MUNIÇÃO
+   ============================================================ */
+
+function createAmmoPickups(){
+
+    for(let i=0;i<4;i++){
+
+        addPickup(
+            'pistol',
+            randomPickupPosition()
+        );
+    }
+
+    for(let i=0;i<6;i++){
+
+        addPickup(
+            'rifle',
+            randomPickupPosition()
+        );
+    }
+
+    for(let i=0;i<5;i++){
+
+        addPickup(
+            'machinegun',
+            randomPickupPosition()
+        );
+    }
+}
+
+
+/* ============================================================
+   COLETES
+   ============================================================ */
+
+function createArmorPickups(){
+
+    for(let i=0;i<6;i++){
+
+        addPickup(
+            'armor',
+            randomPickupPosition()
+        );
+    }
+}
+
+
+/* ============================================================
+   KITS MÉDICOS
+   ============================================================ */
+
+function createMedkits(){
+
+    /*
+       Mínimo de 10 kits por fase.
+    */
+
+    for(let i=0;i<10;i++){
+
+        addPickup(
+            'medkit',
+            randomPickupPosition()
+        );
+    }
+}
+
+
+/* ============================================================
+   GRANADAS
+   ============================================================ */
+
+function createGrenades(){
+
+    for(let i=0;i<5;i++){
+
+        addPickup(
+            'grenade',
+            randomPickupPosition()
+        );
+    }
+}
+
+
+/* ============================================================
+   FOGUETES
+   ============================================================ */
+
+function createRocketBoxes(){
+
+    for(let i=0;i<4;i++){
+
+        addPickup(
+            'rocket',
+            randomPickupPosition()
+        );
+    }
+}
+
+
+/* ============================================================
+   POSIÇÃO DAS CAIXAS
+   ============================================================ */
+
+function randomPickupPosition(){
+
+    return new THREE.Vector3(
+        (Math.random()-.5)*120,
+        .05,
+        (Math.random()-.5)*120
+    );
+}
+
+
+/* ============================================================
+   INIMIGOS
+   ============================================================ */
+
+function spawnEnemies(){
+
+    const count=Math.min(
+        4+level,
+        18
+    );
+
+    player.enemyNation=
+        getEnemyNation();
+
+    for(let i=0;i<count;i++){
+
+        const mesh=
+            createSoldierMesh(
+                player.enemyNation,
+                true
+            );
+
+        mesh.position.set(
+            (Math.random()-.5)*100,
+            0,
+            -35-
+            Math.random()*90
+        );
+
+        scene.add(mesh);
+
+        enemies.push({
+
+            mesh,
+
+            nation:
+                player.enemyNation,
+
+            health:100,
+
+            speed:
+                .7+
+                Math.random()*.35,
+
+            accuracy:
+                .18+
+                Math.random()*.18,
+
+            lastShot:0,
+
+            fireDelay:
+                1800+
+                Math.random()*1800
+        });
+    }
+
+    showMessage(
+        `INIMIGOS: ${nationData[player.enemyNation].name}`,
+        '#ffb25c'
+    );
+}
+
+
+/* ============================================================
+   ARMA PRIMEIRA PESSOA
+   ============================================================ */
+
+function updateFirstPersonWeapon(){
+
+    while(
+        playerFPWeaponGroup.children.length
+    ){
+
+        playerFPWeaponGroup.remove(
+            playerFPWeaponGroup.children[0]
+        );
+    }
+
+    const weapon=
+        createWeaponMesh(
+            player.currentWeapon
+        );
+
+    weapon.position.set(
+        .28,
+        -.25,
+        -.55
+    );
+
+    weapon.rotation.y=
+        -Math.PI/12;
+
+    playerFPWeaponGroup.add(
+        weapon
+    );
+}
+
+
+/* ============================================================
+   TIRO
+   ============================================================ */
+
+function shoot(){
+
+    if(!isGameRunning)
+        return;
+
+    const weapon=
+        weaponsData[
+            player.currentWeapon
+        ];
+
+    const now=
+        performance.now();
+
+    if(player.isReloading)
+        return;
+
+    if(
+        now-
+        player.lastShot<
+        weapon.fireRate
+    )
+        return;
+
+
+    if(weapon.melee){
+
+        meleeAttack();
+
+        return;
+    }
+
+
+    const type=
+        weapon.ammoType;
+
+
+    if(
+        player.magazine[type]<=0
+    ){
+
+        reloadWeapon();
+
+        return;
+    }
+
+
+    player.lastShot=now;
+
+    player.magazine[type]--;
+
+
+    /*
+       EJETA UMA CÁPSULA A CADA DISPARO
+    */
+
+    if(!weapon.explosive){
+
+        ejectShell();
+    }
+
+
+    playSound(
+        weapon.explosive
+        ?'rocket'
+        :'shoot'
+    );
+
+
+    recoil+=
+        weapon.recoil;
+
+
+    const spreadX=
+        (Math.random()-.5)*
+        weapon.spread;
+
+    const spreadY=
+        (Math.random()-.5)*
+        weapon.spread;
+
+
+    const raycaster=
+        new THREE.Raycaster();
+
+
+    raycaster.setFromCamera(
+        new THREE.Vector2(
+            spreadX,
+            spreadY
+        ),
+        camera
+    );
+
+
+    const flashPosition=
+        new THREE.Vector3();
+
+
+    flashPosition.setFromMatrixPosition(
+        playerFPWeaponGroup.matrixWorld
+    );
+
+
+    muzzleFlash(
+        flashPosition
+    );
+
+
+    let closestHit=null;
+
+    let closestDistance=
+        Infinity;
+
+
+    for(
+        const enemy of enemies
+    ){
+
+        const hits=
+            raycaster.intersectObject(
+                enemy.mesh,
+                true
+            );
+
+
+        if(
+            hits.length &&
+            hits[0].distance<
+            weapon.range &&
+            hits[0].distance<
+            closestDistance
+        ){
+
+            closestHit={
+                enemy,
+                hit:hits[0]
+            };
+
+            closestDistance=
+                hits[0].distance;
+        }
+    }
+
+
+    if(closestHit){
+
+        const enemy=
+            closestHit.enemy;
+
+        const hit=
+            closestHit.hit;
+
+
+        let damage=
+            weapon.damage;
+
+
+        if(
+            hit.object.userData.hitZone===
+            'head'
+        ){
+
+            damage=
+                weapon.headDamage;
+        }
+
+
+        if(weapon.explosive){
+
+            createExplosion(
+                hit.point,
+                weapon.damage
+            );
+
+        }else{
+
+            enemy.health-=
+                damage;
+
+            createBloodEffect(
+                hit.point
+            );
+        }
+
+
+        if(
+            enemy.health<=0
+        ){
+
+            killEnemy(
+                enemy
+            );
+        }
+    }
+
+    updateHUD();
+}
+
+
+/* ============================================================
+   BAIONETA
+   ============================================================ */
+
+function meleeAttack(){
+
+    const weapon=
+        weaponsData[4];
+
+    const raycaster=
+        new THREE.Raycaster();
+
+    raycaster.setFromCamera(
+        new THREE.Vector2(
+            0,
+            0
+        ),
+        camera
+    );
+
+    let target=null;
+
+    let distance=
+        Infinity;
+
+
+    for(
+        const enemy of enemies
+    ){
+
+        const hits=
+            raycaster.intersectObject(
+                enemy.mesh,
+                true
+            );
+
+
+        if(
+            hits.length &&
+            hits[0].distance<
+            weapon.range &&
+            hits[0].distance<
+            distance
+        ){
+
+            target={
+                enemy,
+                hit:hits[0]
+            };
+
+            distance=
+                hits[0].distance;
+        }
+    }
+
+
+    if(target){
+
+        target.enemy.health-=
+            weapon.damage;
+
+        createBloodEffect(
+            target.hit.point
+        );
+
+
+        if(
+            target.enemy.health<=0
+        ){
+
+            killEnemy(
+                target.enemy
+            );
+        }
+    }
+}
+
+
+/* ============================================================
+   MORTE DO INIMIGO
+   ============================================================ */
+
+function killEnemy(enemy){
+
+    scene.remove(
+        enemy.mesh
+    );
+
+    const index=
+        enemies.indexOf(enemy);
+
+    if(index!==-1)
+        enemies.splice(
+            index,
+            1
+        );
+
+    showMessage(
+        `${nationData[enemy.nation].name}: INIMIGO ELIMINADO`,
+        '#8de08d'
+    );
+
+
+    if(enemies.length===0){
+
+        setTimeout(
+            nextLevel,
+            1400
+        );
+    }
+}
+
+
+/* ============================================================
+   EXPLOSÃO
+   ============================================================ */
+
+function createExplosion(
+    position,
+    damage
+){
+
+    const sphere=
+        new THREE.Mesh(
+            new THREE.SphereGeometry(
+                1.8,
+                16,
+                12
+            ),
+            new THREE.MeshBasicMaterial({
+                color:0xff9a3c,
+                transparent:true,
+                opacity:.45
+            })
+        );
+
+    sphere.position.copy(
+        position
+    );
+
+    scene.add(sphere);
+
+    setTimeout(()=>{
+        scene.remove(sphere);
+    },180);
+
+
+    for(
+        const enemy of enemies
+    ){
+
+        const d=
+            enemy.mesh.position
+            .distanceTo(position);
+
+        if(d<5){
+
+            const factor=
+                1-d/5;
+
+            enemy.health-=
+                damage*factor;
+
+            createBloodEffect(
+                enemy.mesh.position
+            );
+
+            if(enemy.health<=0){
+
+                killEnemy(
+                    enemy
+                );
+            }
+        }
+    }
+
+    playSound(
+        'grenade'
+    );
+}
+
+
+/* ============================================================
+   GRANADA
+   ============================================================ */
+
+function throwGrenade(){
+
+    if(!isGameRunning)
+        return;
+
+
+    if(player.grenades<=0){
+
+        showMessage(
+            'SEM GRANADAS',
+            '#ff7777'
+        );
+
+        return;
+    }
+
+
+    player.grenades--;
+
+
+    const mesh=
+        new THREE.Mesh(
+            new THREE.SphereGeometry(
+                .12,
+                8,
+                8
+            ),
+            new THREE.MeshStandardMaterial({
+                color:0x39432b
+            })
+        );
+
+
+    /*
+       A granada nasce à frente da câmera,
+       não dentro do jogador.
+    */
+
+    const forward=
+        new THREE.Vector3();
+
+    camera.getWorldDirection(
+        forward
+    );
+
+    forward.normalize();
+
+
+    const start=
+        camera.position.clone()
+        .add(
+            forward.clone()
+            .multiplyScalar(.9)
+        );
+
+    start.y=
+        camera.position.y-
+        .05;
+
+    mesh.position.copy(
+        start
+    );
+
+
+    /*
+       Velocidade para frente.
+       O eixo vertical recebe impulso
+       para criar uma trajetória de arco.
+    */
+
+    const velocity=
+        forward
+        .multiplyScalar(14);
+
+    velocity.y+=5.5;
+
+
+    scene.add(mesh);
+
+
+    projectiles.push({
+
+        mesh,
+
+        velocity,
+
+        life:1.35,
+
+        grenade:true
+    });
+
+
+    playSound(
+        'grenade'
+    );
+
+    updateHUD();
+}
+
+
+/* ============================================================
+   BAZUCA
+   ============================================================ */
+
+function fireRocket(){
+
+    if(
+        player.currentWeapon!==5
+    ){
+
+        setWeapon(5);
+    }
+
+    shoot();
+}
+
+
+/* ============================================================
+   KIT MÉDICO
+   ============================================================ */
+
+function useMedkit(){
+
+    if(!isGameRunning)
+        return;
+
+
+    if(player.medkits<=0){
+
+        showMessage(
+            'SEM KITS MÉDICOS',
+            '#ff7777'
+        );
+
+        return;
+    }
+
+
+    if(player.health>=100){
+
+        showMessage(
+            'VIDA JÁ ESTÁ CHEIA',
+            '#e0bd45'
+        );
+
+        return;
+    }
+
+
+    player.medkits--;
+
+
+    player.health=
+        Math.min(
+            100,
+            player.health+40
+        );
+
+
+    playSound(
+        'heal'
+    );
+
+
+    showMessage(
+        '+40 VIDA',
+        '#64dc76'
+    );
+
+
+    updateHUD();
+}
+
+
+/* ============================================================
+   SISTEMA DE COLETE
+   ============================================================ */
+
+/*
+   Cada colete suporta 30 impactos.
+
+   Quando o jogador recebe um disparo:
+       1 impacto = -1 resistência do colete.
+
+   Enquanto houver colete:
+       o disparo não reduz a vida.
+
+   Ao chegar em 0:
+       o colete desaparece.
+
+   Se houver outro colete armazenado:
+       ele é automaticamente equipado.
+
+   Se não houver:
+       os próximos disparos reduzem a vida.
+*/
+
+function applyDamage(amount){
+
+    if(!isGameRunning)
+        return;
+
+
+    /*
+       Qualquer disparo recebido enquanto
+       o colete estiver ativo consome 1 impacto.
+    */
+
+    if(player.armor>0){
+
+        player.armor--;
+
+        if(player.armor<=0){
+
+            player.armor=0;
+
+            showMessage(
+                'COLETE DESTRUÍDO',
+                '#ff8b45'
+            );
+
+
+            /*
+               Ativa automaticamente um
+               colete previamente armazenado.
+            */
+
+            if(player.armorStock>0){
+
+                player.armorStock--;
+
+                player.armor=
+                    player.maxArmor;
+
+                showMessage(
+                    'NOVO COLETE EQUIPADO',
+                    '#70b8ff'
+                );
+            }
+        }
+
+        updateHUD();
+
+        return;
+    }
+
+
+    /*
+       Sem colete:
+       dano direto na vida.
+    */
+
+    player.health-=amount;
+
+    updateHUD();
+
+
+    if(player.health<=0){
+
+        player.health=0;
+
+        endGame(false);
+    }
+}
+
+
+/* ============================================================
+   RECARREGAR
+   ============================================================ */
+
+function reloadWeapon(){
+
+    const weapon=
+        weaponsData[
+            player.currentWeapon
+        ];
+
+
+    if(
+        weapon.melee ||
+        player.isReloading
+    )
+        return;
+
+
+    const type=
+        weapon.ammoType;
+
+
+    if(
+        player.magazine[type]>=
+        weapon.magazine
+    )
+        return;
+
+
+    if(
+        player.ammo[type]<=0
+    ){
+
+        showMessage(
+            'SEM MUNIÇÃO',
+            '#ff7777'
+        );
+
+        return;
+    }
+
+
+    player.isReloading=true;
+
+
+    document.getElementById(
+        'reload-indicator'
+    ).style.display='block';
+
+
+    playSound(
+        'reload'
+    );
+
+
+    setTimeout(()=>{
+
+        const missing=
+            weapon.magazine-
+            player.magazine[type];
+
+
+        const amount=
+            Math.min(
+                missing,
+                player.ammo[type]
+            );
+
+
+        player.magazine[type]+=
+            amount;
+
+        player.ammo[type]-=
+            amount;
+
+
+        player.isReloading=false;
+
+
+        document.getElementById(
+            'reload-indicator'
+        ).style.display='none';
+
+
+        updateHUD();
+
+    },weapon.reloadTime);
+}
+
+
+/* ============================================================
+   CONTROLES
+   ============================================================ */
+
+function setupControls(){
+
+    window.addEventListener(
+        'keydown',
+        e=>{
+
+            const key=
+                e.key.toLowerCase();
+
+            keys[key]=true;
+
+
+            if(key==='1')
+                setWeapon(1);
+
+            if(key==='2')
+                setWeapon(2);
+
+            if(key==='3')
+                setWeapon(3);
+
+            if(key==='4')
+                setWeapon(4);
+
+            if(key==='5')
+                setWeapon(5);
+
+
+            if(key==='r')
+                reloadWeapon();
+
+            if(key==='k')
+                useMedkit();
+
+            if(key==='g')
+                throwGrenade();
+
+            if(key==='b')
+                fireRocket();
+        }
+    );
+
+
+    window.addEventListener(
+        'keyup',
+        e=>{
+
+            keys[
+                e.key.toLowerCase()
+            ]=false;
+        }
+    );
+
+
+    const canvas=
+        renderer.domElement;
+
+
+    canvas.addEventListener(
+        'click',
+        ()=>{
+
+            if(!isGameRunning)
+                return;
+
+            canvas.requestPointerLock?.();
+
+            shoot();
+        }
+    );
+
+
+    document.addEventListener(
+        'mousemove',
+        e=>{
+
+            if(
+                document.pointerLockElement===
+                canvas &&
+                isGameRunning
+            ){
+
+                camera.rotation.y-=
+                    e.movementX*.0022;
+
+                camera.rotation.x-=
+                    e.movementY*.0022;
+
+
+                camera.rotation.x=
+                    Math.max(
+                        -Math.PI/2.2,
+                        Math.min(
+                            Math.PI/2.2,
+                            camera.rotation.x
+                        )
+                    );
+            }
+        }
+    );
+
+
+    document.getElementById(
+        'btn-fire'
+    ).addEventListener(
+        'click',
+        e=>{
+
+            e.stopPropagation();
+
+            shoot();
+        }
+    );
+
+
+    document.getElementById(
+        'btn-medkit'
+    ).addEventListener(
+        'click',
+        e=>{
+
+            e.stopPropagation();
+
+            useMedkit();
+        }
+    );
+
+
+    document.getElementById(
+        'btn-grenade'
+    ).addEventListener(
+        'click',
+        e=>{
+
+            e.stopPropagation();
+
+            throwGrenade();
+        }
+    );
+
+
+    document.getElementById(
+        'btn-rocket'
+    ).addEventListener(
+        'click',
+        e=>{
+
+            e.stopPropagation();
+
+            fireRocket();
+        }
+    );
+
+
+    setupJoystick();
+}
+
+
+/* ============================================================
+   JOYSTICK
+   ============================================================ */
+
+function setupJoystick(){
+
+    const joystick=
+        document.getElementById(
+            'touch-joystick'
+        );
+
+    const stick=
+        document.getElementById(
+            'stick'
+        );
+
+    let touchId=null;
+
+
+    joystick.addEventListener(
+        'touchstart',
+        e=>{
+
+            e.preventDefault();
+
+            touchId=
+                e.changedTouches[0]
+                .identifier;
+        },
+        {
+            passive:false
+        }
+    );
+
+
+    window.addEventListener(
+        'touchmove',
+        e=>{
+
+            if(touchId===null)
+                return;
+
+
+            for(
+                const touch of e.touches
+            ){
+
+                if(
+                    touch.identifier!==
+                    touchId
+                )
+                    continue;
+
+
+                const rect=
+                    joystick
+                    .getBoundingClientRect();
+
+
+                let dx=
+                    touch.clientX-
+                    (
+                        rect.left+
+                        rect.width/2
+                    );
+
+
+                let dy=
+                    touch.clientY-
+                    (
+                        rect.top+
+                        rect.height/2
+                    );
+
+
+                const max=40;
+
+
+                const distance=
+                    Math.hypot(
+                        dx,
+                        dy
+                    );
+
+
+                if(distance>max){
+
+                    dx=
+                        dx/distance*
+                        max;
+
+                    dy=
+                        dy/distance*
+                        max;
+                }
+
+
+                stick.style.transform=
+                    `translate(${dx}px,${dy}px)`;
+
+
+                joystickMove.x=
+                    dx/max;
+
+                joystickMove.y=
+                    dy/max;
+            }
+
+        },
+        {
+            passive:false
+        }
+    );
+
+
+    const reset=()=>{
+
+        touchId=null;
+
+        stick.style.transform=
+            'translate(0,0)';
+
+        joystickMove.x=0;
+        joystickMove.y=0;
+    };
+
+
+    window.addEventListener(
+        'touchend',
+        reset
+    );
+
+    window.addEventListener(
+        'touchcancel',
+        reset
+    );
+}
+
+
+/* ============================================================
+   TROCA DE ARMA
+   ============================================================ */
+
+function setWeapon(id){
+
+    if(player.isReloading)
+        return;
+
+    if(!weaponsData[id])
+        return;
+
+    player.currentWeapon=id;
+
+    updateFirstPersonWeapon();
+
+    updateHUD();
+}
+
+
+/* ============================================================
+   SELEÇÃO DA NAÇÃO
+   ============================================================ */
+
+function selectNation(nation){
+
+    player.nation=
+        nation;
+
+    player.enemyNation=
+        getEnemyNation();
+
+
+    document.getElementById(
+        'menu-screen'
+    ).style.display='none';
+
+
+    document.getElementById(
+        'hud'
+    ).style.display='flex';
+
+
+    if(
+        'ontouchstart' in window
+    ){
+
+        document.getElementById(
+            'touch-joystick'
+        ).style.display='block';
+
+        document.getElementById(
+            'weapon-buttons'
+        ).style.display='flex';
+    }
+
+
+    initEngine();
+
+    resetPlayer();
+
+    createBattlefield();
+
+    isGameRunning=true;
+
+    lastTime=
+        performance.now();
+
+    requestAnimationFrame(
+        animate
+    );
+}
+
+
+/* ============================================================
+   RESET
+   ============================================================ */
+
+function resetPlayer(){
+
+    player.currentWeapon=2;
+
+    player.health=100;
+
+    player.armor=0;
+
+    player.armorStock=0;
+
+    player.stamina=100;
+
+    /*
+       1 kit inicial
+    */
+
+    player.medkits=1;
+
+    player.grenades=2;
+
+    player.ammo={
+        pistol:21,
+        rifle:40,
+        machinegun:90,
+        rockets:0
+    };
+
+
+    player.magazine={
+
+        pistol:7,
+
+        rifle:8,
+
+        machinegun:30,
+
+        rockets:1
+    };
+
+
+    player.isReloading=false;
+
+    player.lastShot=0;
+}
+
+
+/* ============================================================
+   HUD
+   ============================================================ */
+
+function updateHUD(){
+
+    if(!player)
+        return;
+
+
+    const weapon=
+        weaponsData[
+            player.currentWeapon
+        ];
+
+
+    document.getElementById(
+        'ui-level'
+    ).innerText=
+        `${level}/12`;
+
+
+    document.getElementById(
+        'ui-health'
+    ).innerText=
+        `${Math.max(
+            0,
+            Math.round(
+                player.health
+            )
+        )}%`;
+
+
+    document.getElementById(
+        'ui-armor'
+    ).innerText=
+        `${Math.round(
+            player.armor
+        )}/30`;
+
+
+    document.getElementById(
+        'ui-vests'
+    ).innerText=
+        player.armorStock;
+
+
+    document.getElementById(
+        'ui-stamina'
+    ).innerText=
+        `${Math.round(
+            player.stamina
+        )}%`;
+
+
+    document.getElementById(
+        'ui-weapon'
+    ).innerText=
+        weapon.name;
+
+
+    if(weapon.melee){
+
+        document.getElementById(
+            'ui-ammo'
+        ).innerText='—';
+
+    }else{
+
+        const type=
+            weapon.ammoType;
+
+
+        document.getElementById(
+            'ui-ammo'
+        ).innerText=
+            player.isReloading
+            ?
+            'RECARREGANDO'
+            :
+            `${player.magazine[type]} / ${player.ammo[type]}`;
+    }
+
+
+    document.getElementById(
+        'ui-medkits'
+    ).innerText=
+        player.medkits;
+
+
+    document.getElementById(
+        'ui-grenades'
+    ).innerText=
+        player.grenades;
+
+
+    document.getElementById(
+        'ui-rocket-ammo'
+    ).innerText=
+        player.ammo.rockets;
+
+
+    document.getElementById(
+        'ui-enemies'
+    ).innerText=
+        enemies.length;
+}
+
+
+/* ============================================================
+   COLETA
+   ============================================================ */
+
+function collectPickup(pickup){
+
+    if(!pickup.active)
+        return;
+
+
+    pickup.active=false;
+
+    scene.remove(
+        pickup.mesh
+    );
+
+
+    switch(pickup.type){
+
+        case'pistol':
+
+            player.ammo.pistol+=21;
+
+            showMessage(
+                '+21 munição de pistola',
+                '#74aee8'
+            );
+
+            break;
+
+
+        case'rifle':
+
+            player.ammo.rifle+=24;
+
+            showMessage(
+                '+24 munição de fuzil',
+                '#b8c875'
+            );
+
+            break;
+
+
+        case'machinegun':
+
+            player.ammo.machinegun+=60;
+
+            showMessage(
+                '+60 munição de metralhadora',
+                '#9da981'
+            );
+
+            break;
+
+
+        case'grenade':
+
+            player.grenades+=2;
+
+            showMessage(
+                '+2 granadas',
+                '#b5b889'
+            );
+
+            break;
+
+
+        case'rocket':
+
+            player.ammo.rockets+=2;
+
+            showMessage(
+                '+2 foguetes de bazuca',
+                '#e2995d'
+            );
+
+            break;
+
+
+        case'armor':
+
+            /*
+               Se não há colete ativo,
+               equipa imediatamente.
+
+               Caso já exista um colete,
+               guarda na reserva.
+            */
+
+            if(player.armor<=0){
+
+                player.armor=
+                    player.maxArmor;
+
+                showMessage(
+                    'COLETE EQUIPADO — 30 IMPACTOS',
+                    '#70b8ff'
+                );
+
+            }else{
+
+                player.armorStock++;
+
+                showMessage(
+                    `COLETE GUARDADO — RESERVA: ${player.armorStock}`,
+                    '#70b8ff'
+                );
+            }
+
+            break;
+
+
+        case'medkit':
+
+            player.medkits++;
+
+            showMessage(
+                '+1 KIT MÉDICO — pressione K',
+                '#ff7272'
+            );
+
+            break;
+    }
+
+
+    playSound(
+        'pickup'
+    );
+
+
+    updateHUD();
+}
+
+
+/* ============================================================
+   TIRO DOS INIMIGOS
+   ============================================================ */
+
+function enemyShoot(enemy){
+
+    const distance=
+        enemy.mesh.position
+        .distanceTo(
+            camera.position
+        );
+
+
+    if(distance>55)
+        return;
+
+
+    const now=
+        performance.now();
+
+
+    if(
+        now-
+        enemy.lastShot<
+        enemy.fireDelay
+    )
+        return;
+
+
+    enemy.lastShot=now;
+
+
+    const accuracy=
+        enemy.accuracy*
+        Math.max(
+            .35,
+            1-distance/70
+        );
+
+
+    if(
+        Math.random()>accuracy
+    ){
+
+        createBulletImpact(
+            camera.position
+        );
+
+        return;
+    }
+
+
+    applyDamage(
+        1
+    );
+
+
+    createBulletImpact(
+        camera.position
+    );
+}
+
+
+/* ============================================================
+   LOOP PRINCIPAL
+   ============================================================ */
+
+function animate(
+    time=performance.now()
+){
+
+    if(!isGameRunning)
+        return;
+
+
+    requestAnimationFrame(
+        animate
+    );
+
+
+    const delta=
+        Math.min(
+            .05,
+            (time-lastTime)/1000
+        );
+
+
+    lastTime=time;
+
+
+    const moveDir=
+        new THREE.Vector3();
+
+
+    if(keys.w)
+        moveDir.z-=1;
+
+    if(keys.s)
+        moveDir.z+=1;
+
+    if(keys.a)
+        moveDir.x-=1;
+
+    if(keys.d)
+        moveDir.x+=1;
+
+
+    if(
+        joystickMove.x!==0||
+        joystickMove.y!==0
+    ){
+
+        moveDir.x=
+            joystickMove.x;
+
+        moveDir.z=
+            joystickMove.y;
+    }
+
+
+    let moving=false;
+
+
+    if(moveDir.length()>0){
+
+        moving=true;
+
+        moveDir.normalize();
+
+
+        moveDir.applyEuler(
+            new THREE.Euler(
+                0,
+                camera.rotation.y,
+                0
+            )
+        );
+
+
+        let speed=3.4;
+
+
+        if(
+            keys.shift &&
+            player.stamina>0
+        ){
+
+            speed=5.8;
+
+            player.stamina-=
+                25*delta;
+
+        }else{
+
+            player.stamina+=
+                12*delta;
+        }
+
+
+        player.stamina=
+            THREE.MathUtils.clamp(
+                player.stamina,
+                0,
+                100
+            );
+
+
+        camera.position.addScaledVector(
+            moveDir,
+            speed*delta
+        );
+
+    }else{
+
+        player.stamina+=
+            18*delta;
+
+
+        player.stamina=
+            Math.min(
+                100,
+                player.stamina
+            );
+    }
+
+
+    camera.position.y=1.7;
+
+
+    if(moving){
+
+        weaponBob+=
+            delta*9;
+
+
+        camera.position.y=
+            1.7+
+            Math.sin(
+                weaponBob
+            )*.018;
+
+
+        playerFPWeaponGroup.rotation.x=
+            Math.sin(
+                weaponBob
+            )*.015;
+
+    }else{
+
+        playerFPWeaponGroup.rotation.x*=.9;
+    }
+
+
+    recoil*=.88;
+
+
+    camera.rotation.x-=
+        recoil*.18;
+
+
+    /* ========================================================
+       PROJÉTEIS
+       ======================================================== */
+
+    for(
+        let i=
+            projectiles.length-1;
+        i>=0;
+        i--
+    ){
+
+        const p=
+            projectiles[i];
+
+
+        p.mesh.position.addScaledVector(
+            p.velocity,
+            delta
+        );
+
+
+        if(p.grenade){
+
+            p.velocity.y-=
+                9.8*delta;
+
+        }else{
+
+            p.velocity.y-=
+                3*delta;
+        }
+
+
+        p.life-=delta;
+
+
+        if(
+            p.life<=0||
+            p.mesh.position.y<=0
+        ){
+
+            if(p.grenade){
+
+                createExplosion(
+                    p.mesh.position,
+                    150
+                );
+            }
+
+
+            scene.remove(
+                p.mesh
+            );
+
+
+            projectiles.splice(
+                i,
+                1
+            );
+        }
+    }
+
+
+    /* ========================================================
+       CÁPSULAS
+       ======================================================== */
+
+    for(
+        let i=
+            shells.length-1;
+        i>=0;
+        i--
+    ){
+
+        const shell=
+            shells[i];
+
+
+        shell.mesh.position.addScaledVector(
+            shell.velocity,
+            delta
+        );
+
+
+        shell.velocity.y-=
+            9.8*delta;
+
+
+        shell.mesh.rotation.x+=
+            delta*8;
+
+
+        shell.life-=delta;
+
+
+        if(
+            shell.mesh.position.y<=.02||
+            shell.life<=0
+        ){
+
+            scene.remove(
+                shell.mesh
+            );
+
+            shells.splice(
+                i,
+                1
+            );
+        }
+    }
+
+
+    /* ========================================================
+       PARTÍCULAS
+       ======================================================== */
+
+    for(
+        let i=
+            particles.length-1;
+        i>=0;
+        i--
+    ){
+
+        const p=
+            particles[i];
+
+
+        p.mesh.position.addScaledVector(
+            p.mesh.velocity,
+            delta*60
+        );
+
+
+        p.mesh.velocity.y-=
+            4*delta;
+
+
+        p.life-=delta;
+
+
+        if(p.life<=0){
+
+            scene.remove(
+                p.mesh
+            );
+
+            particles.splice(
+                i,
+                1
+            );
+        }
+    }
+
+
+    /* ========================================================
+       INIMIGOS
+       ======================================================== */
+
+    for(
+        const enemy of enemies
+    ){
+
+        const pos=
+            enemy.mesh.position;
+
+        const target=
+            camera.position;
+
+
+        const direction=
+            new THREE.Vector3();
+
+
+        direction.subVectors(
+            target,
+            pos
+        );
+
+
+        direction.y=0;
+
+
+        const distance=
+            direction.length();
+
+
+        if(direction.length()>0)
+            direction.normalize();
+
+
+        enemy.mesh.lookAt(
+            target.x,
+            enemy.mesh.position.y,
+            target.z
+        );
+
+
+        if(distance<45){
+
+            enemyShoot(
+                enemy
+            );
+
+        }else{
+
+            enemy.mesh.position.addScaledVector(
+                direction,
+                enemy.speed*delta
+            );
+        }
+
+
+        if(distance<8){
+
+            enemy.mesh.position.addScaledVector(
+                direction,
+                -enemy.speed*delta
+            );
+        }
+    }
+
+
+    /* ========================================================
+       COLETA
+       ======================================================== */
+
+    for(
+        const pickup of pickups
+    ){
+
+        if(
+            pickup.active&&
+            camera.position.distanceTo(
+                pickup.mesh.position
+            )<2.2
+        ){
+
+            collectPickup(
+                pickup
+            );
+        }
+    }
+
+
+    updateHUD();
+
+
+    renderer.render(
+        scene,
+        camera
+    );
+}
+
+
+/* ============================================================
+   EFEITOS
+   ============================================================ */
+
+function muzzleFlash(position){
+
+    const light=
+        new THREE.PointLight(
+            0xffaa55,
+            4,
+            7
+        );
+
+
+    light.position.copy(
+        position
+    );
+
+
+    scene.add(light);
+
+
+    setTimeout(()=>{
+        scene.remove(light);
+    },45);
+}
+
+
+function createBloodEffect(
+    position
+){
+
+    for(let i=0;i<6;i++){
+
+        const mesh=
+            new THREE.Mesh(
+                new THREE.SphereGeometry(
+                    .025,
+                    5,
+                    5
+                ),
+                new THREE.MeshBasicMaterial({
+                    color:0x680b08
+                })
+            );
+
+
+        mesh.position.copy(
+            position
+        );
+
+
+        mesh.velocity=
+            new THREE.Vector3(
+                (Math.random()-.5)*.08,
+                Math.random()*.08,
+                (Math.random()-.5)*.08
+            );
+
+
+        scene.add(mesh);
+
+
+        particles.push({
+
+            mesh,
+
+            life:.35
+        });
+    }
+}
+
+
+function createBulletImpact(
+    position
+){
+
+    const mesh=
+        new THREE.Mesh(
+            new THREE.SphereGeometry(
+                .035,
+                5,
+                5
+            ),
+            new THREE.MeshBasicMaterial({
+                color:0xd0a15b
+            })
+        );
+
+
+    mesh.position.copy(
+        position
+    );
+
+
+    scene.add(mesh);
+
+
+    setTimeout(()=>{
+        scene.remove(mesh);
+    },120);
+}
+
+
+/* ============================================================
+   EJEÇÃO DE CÁPSULA
+   ============================================================ */
+
+function ejectShell(){
+
+    const shell=
+        new THREE.Mesh(
+            new THREE.CylinderGeometry(
+                .012,
+                .012,
+                .06,
+                8
+            ),
+            new THREE.MeshStandardMaterial({
+                color:0xb58a2a,
+                metalness:.8,
+                roughness:.25
+            })
+        );
+
+
+    /*
+       Nasce ao lado da arma.
+    */
+
+    const pos=
+        new THREE.Vector3(
+            .20,
+            -.20,
+            -.40
+        );
+
+
+    pos.applyMatrix4(
+        camera.matrixWorld
+    );
+
+
+    shell.position.copy(
+        pos
+    );
+
+
+    /*
+       Ejeção lateral e levemente para cima.
+    */
+
+    const right=
+        new THREE.Vector3(
+            1,
+            0,
+            0
+        );
+
+    right.applyQuaternion(
+        camera.quaternion
+    );
+
+
+    const forward=
+        new THREE.Vector3();
+
+    camera.getWorldDirection(
+        forward
+    );
+
+
+    const velocity=
+        right
+        .multiplyScalar(
+            .8+
+            Math.random()*.4
+        );
+
+
+    velocity.y+=
+        .7+
+        Math.random()*.4;
+
+
+    velocity.addScaledVector(
+        forward,
+        -.15
+    );
+
+
+    scene.add(
+        shell
+    );
+
+
+    shells.push({
+
+        mesh:shell,
+
+        velocity,
+
+        life:2.5
+    });
+}
+
+
+/* ============================================================
+   FASES
+   ============================================================ */
+
+function nextLevel(){
+
+    if(level<12){
+
+        level++;
+
+
+        player.health=
+            Math.min(
+                100,
+                player.health+15
+            );
+
+
+        player.stamina=100;
+
+
+        /*
+           Não restaura munição.
+           Não restaura coletes.
+           O jogador leva seus recursos
+           para a próxima fase.
+        */
+
+        createBattlefield();
+
+    }else{
+
+        endGame(true);
+    }
+}
+
+
+/* ============================================================
+   FIM
+   ============================================================ */
+
+function endGame(won){
+
+    isGameRunning=false;
+
+
+    if(document.exitPointerLock)
+        document.exitPointerLock();
+
+
+    document.getElementById(
+        'end-screen'
+    ).style.display='flex';
+
+
+    document.getElementById(
+        'end-title'
+    ).innerText=
+        won
+        ?
+        'MISSÃO CUMPRIDA'
+        :
+        'ABATIDO EM COMBATE';
+
+
+    document.getElementById(
+        'end-description'
+    ).innerText=
+        won
+        ?
+        'Você completou as 12 fases da operação.'
+        :
+        'Sua missão terminou em combate.';
+}
+
+
+function restartGame(){
+
+    level=1;
+
+    resetPlayer();
+
+
+    document.getElementById(
+        'end-screen'
+    ).style.display='none';
+
+
+    createBattlefield();
+
+
+    isGameRunning=true;
+
+    lastTime=
+        performance.now();
+
+
+    requestAnimationFrame(
+        animate
+    );
+}
+
+
+/* ============================================================
+   RESIZE
+   ============================================================ */
+
+function onWindowResize(){
+
+    if(
+        !camera||
+        !renderer
+    )
+        return;
+
+
+    camera.aspect=
+        window.innerWidth/
+        window.innerHeight;
+
+
+    camera.updateProjectionMatrix();
+
+
+    renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+    );
+}
+
+</script>
+
+</body>
+</html>
